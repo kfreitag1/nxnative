@@ -64,9 +64,15 @@ class LauncherSettingsTests(unittest.TestCase):
         self.assertEqual(build(BOTW, 'nvn', 'ios').keys(), ios.keys())   # ios when unset
         self.assertEqual(set(ios) - set(mac), {'DM_SHOW_FPS', 'DM_TOUCH_HAPTICS'})
         self.assertIn('DM_RUMBLE', mac); self.assertIn('DM_METAL_HUD', mac)
-        self.assertEqual(set(mac) - set(ios), {'DM_FULLSCREEN'})   # the Mac window's Display mode (front_mac.m reads 1 or 0)
+        self.assertEqual(set(mac) - set(ios), {'DM_FULLSCREEN', 'DM_PRESENT_SIZE'})   # the Mac window's Display mode and Output size (front_mac.m)
         s = mac['DM_FULLSCREEN']
         self.assertEqual((s['kind'], s['default'], s['options'], s['level']), ('choice', '0', [['0', 'Window'], ['1', 'Fullscreen']], 'basic'))
+        s = mac['DM_PRESENT_SIZE']
+        self.assertEqual((s['kind'], s['default'], s['options'], s['level']), ('choice', '3840x2160', [['window', 'Window'], ['2560x1440', '1440p'], ['3840x2160', '4K']], 'basic'))
+
+    def test_upscaling_defaults_by_platform(self):
+        self.assertEqual(build(BOTW, 'nvn', 'ios')['DM_PRESENT_UPSCALE']['default'], 'off')
+        self.assertEqual(build(BOTW, 'nvn', 'mac')['DM_PRESENT_UPSCALE']['default'], 'metalfx')
 
     def test_defaults_follow_each_platform_host(self):
         # nvn_mtl.m pso4_on: Mac defaults on, iOS follows the profile. nvn_rec.h rec_on: iOS on, Mac off.
@@ -141,7 +147,9 @@ class LauncherSettingsTests(unittest.TestCase):
                     patch.object(settings.nacp, 'languages', return_value=['en-US']), patch.dict(os.environ, {'GFXAPI': 'nvn'}):
                 (Path(tmp) / 'main.fixups.tsv').write_text('# RENDER_SCALE\t1\n')   # the render scale row's condition
                 listed = settings.build(gid, tmp, Path(tmp) / 'control.nacp')
-            self.assertEqual({s['env']: s for s in listed['settings']}['DM_RENDER_SCALE'].get('base'), base)
+            scale = {s['env']: s for s in listed['settings']}['DM_RENDER_SCALE']
+            self.assertEqual(scale.get('base'), base)
+            self.assertEqual(scale.get('max'), 1.0)
             self.assertEqual(conforms(listed, schema, schema), [])
         for bad in ('1600x900', '1600x900 1280', 'big small', '1600x900x3 1280x720', 'a1600x900 1280x720', '1600x900 1280x720 640x360'):
             with self.subTest(bad=bad):

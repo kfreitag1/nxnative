@@ -212,6 +212,17 @@ static void pads_start(void) {
     dm_motion_pro_start(pro_devices_changed);
 }
 
+static int g_present_w, g_present_h;
+static void present_size(void) {
+    static int done; if (done) return; done = 1;
+    const char *e = getenv("DM_PRESENT_SIZE");
+    if (!e || !*e) e = DM_GAME_PRESENT_SIZE;
+    if (!*e || !strcmp(e, "window") || !strcmp(e, "off") || !strcmp(e, "0")) return;
+    int w, h; char x;
+    if (sscanf(e, "%dx%d%c", &w, &h, &x) != 2 || w < 1 || h < 1 || w > 16384 || h > 16384) { LOG("[RED] DM_PRESENT_SIZE=%s: window or <width>x<height>; the drawable follows the window", e); return; }
+    g_present_w = w; g_present_h = h;
+    LOG("front end: the drawable is %dx%d whatever the window (DM_PRESENT_SIZE=%s)", w, h, e);
+}
 // Mouse as a single-point touchscreen (front.h dm_touch_set): left button down / drag = finger 0, release = lifted. The content view takes the clicks,
 // not a window-wide event monitor, so clicks on the title bar, the window buttons and the resize edges still reach AppKit.
 @interface DmGameView : NSView @end
@@ -232,8 +243,11 @@ static void pads_start(void) {
 // scaled down to it and up again by the compositor
 - (void)fitDrawable {
     CAMetalLayer *l = (CAMetalLayer *)self.layer; if (![l isKindOfClass:CAMetalLayer.class] || !self.window) return;
+    present_size();
     l.contentsScale = self.window.backingScaleFactor;
-    NSSize px = [self convertSizeToBacking:self.bounds.size]; if (px.width < 1 || px.height < 1 || CGSizeEqualToSize(l.drawableSize, px)) return;
+    l.contentsGravity = g_present_w ? kCAGravityResizeAspect : kCAGravityResize;
+    NSSize px = g_present_w ? NSMakeSize(g_present_w, g_present_h) : [self convertSizeToBacking:self.bounds.size];
+    if (px.width < 1 || px.height < 1 || CGSizeEqualToSize(l.drawableSize, px)) return;
     l.drawableSize = px; LOG("front end: drawable %.0fx%.0f", px.width, px.height);
 }
 - (void)setFrameSize:(NSSize)s { [super setFrameSize:s]; [self fitDrawable]; }

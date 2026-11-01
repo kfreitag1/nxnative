@@ -105,6 +105,14 @@ def header(g):
     if not re.fullmatch(r'[A-Za-z][A-Za-z0-9_.]{0,30}', ufc): sys.exit(f'{g.id}: ue_fps_cvar must be a console variable name: {ufc}')
     ps = g.get('present_snap', 'off')   # present snapshots by default (nvn_mtl.m mtl_snap_on; DM_PRESENT_SNAP and the iOS launcher's Frame buffering override it): on / off
     if ps not in ('on', 'off'): sys.exit(f'{g.id}: present_snap must be on or off: {ps}')
+    psz = g.get('present_size', '3840x2160')   # the Mac window's drawable size whatever the window (front_mac.m): window follows the window, else <width>x<height>
+    pm = re.fullmatch(r'(\d{1,5})x(\d{1,5})', psz)
+    if psz != 'window' and (not pm or not (1 <= int(pm[1]) <= 16384 and 1 <= int(pm[2]) <= 16384)):
+        sys.exit(f'{g.id}: present_size must be window or <width>x<height> (1 to 16384): {psz}')
+    rsm = g.get('render_scale_max', '1.0')   # the ceiling DM_RENDER_SCALE may reach for this game (loader.c): above native only with the pools and views a per-game patch enlarges
+    try: rsmf = float(rsm)
+    except ValueError: sys.exit(f'{g.id}: render_scale_max must be a number: {rsm}')
+    if not (1.0 <= rsmf <= 8.0): sys.exit(f'{g.id}: render_scale_max must be 1.0 to 8.0: {rsm}')
     p4 = g.get('pso_mtl4', 'off')   # render pipelines through MTL4Compiler on iOS by default, with the pipeline archive and hybrid pipelines (on by default on the Mac; DM_PSO_MTL4 overrides): on / off
     if p4 not in ('on', 'off'): sys.exit(f'{g.id}: pso_mtl4 must be on or off: {p4}')
     pg = g.words('pso_gpu', '')   # GPU architectures the app gets the pipeline archive made offline for (the NSP script's --gpu, build_ipa.sh): when pso_mtl4 is on the app gets these instead of the default g18p, the A19 / A19 Pro of the iPhone 17 family (e.g. 'applegpu_g19p' for a device of the family after it); unset → the default. Whitespace-separated tokens, with or without the applegpu_ prefix
@@ -176,12 +184,14 @@ def header(g):
          f'#define DM_GAME_UE_TEXTURE_POOL {int(utp)}',
          f'#define DM_GAME_UE_FPS_CVAR {q(ufc)}',
          f'#define DM_GAME_PRESENT_SNAP {int(ps == "on")}',
+         f'#define DM_GAME_PRESENT_SIZE {q(psz)}',
          f'#define DM_GAME_PSO_MTL4 {int(p4 == "on")}',
          f'#define DM_GAME_ENC_THREAD {int(et == "on")}',
          *([f'#define DM_GAME_SHARED_FONT_TTF {int(sf == "ttf")}'] if g.get('shared_font', '') else []),   # without the key the host decides by the SDK version (hle_sdk16.c)
          f'#define DM_GAME_PAD_LAYOUT {("simple", "full", "touch").index(pl)}',
          f'#define DM_GAME_OPMODE {int(om == "console")}',
          f'#define DM_GAME_PERF_BOOST {int(pm == "boost")}',
+         f'#define DM_GAME_RENDER_SCALE_MAX {rsmf}f',
          f'#define DM_GAME_TEX_FLUSH_UPLOAD {int(tfu == "on")}',
          f'#define DM_GAME_SHADER_KEY_SKIP_OFF {sko:#x}', f'#define DM_GAME_SHADER_KEY_SKIP_LEN {skl:#x}',
          f'#define DM_GAME_RENDER_COND {int(rcd == "on")}',

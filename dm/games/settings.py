@@ -113,6 +113,7 @@ def build(gid, patched, control):
         elif kind == 'range':
             lo, hi, st = (float(x) for x in values.split(':'))
             s.update(min=lo, max=hi, step=st)
+            if var == 'DM_RENDER_SCALE' and float(g.get('render_scale_max', '1.0')) > 1.0: s['max'] = float(g.get('render_scale_max', '1.0'))
         elif kind == 'toggle':
             if s['default'] not in ('0', '1'): sys.exit(f'settings.tsv:{n}: a toggle defaults to 0 or 1: {s["default"]}')
             on_off = ['1', '0'] if values == '-' else values.split('/')

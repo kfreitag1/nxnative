@@ -24,6 +24,18 @@ def header(rows):
     return r.returncode, (r.stderr + r.stdout).strip()
 
 
+class RenderScaleMax(unittest.TestCase):
+    def test_accepted(self):
+        for v in ('1.0', '2.4', '8'):
+            self.assertEqual(header('render_scale_max\t' + v + '\n'), (0, ''), v)
+
+    def test_rejected(self):
+        for v in ('0.5', '8.1', 'x', 'nan', '2,4'):
+            rc, out = header('render_scale_max\t' + v + '\n')
+            self.assertNotEqual(rc, 0, v)
+            self.assertIn(': render_scale_max must be', out, v)
+
+
 class PsoGPU(unittest.TestCase):
     def test_valid_tokens(self):
         for rows in ('', 'pso_mtl4\ton\npso_gpu\tg18p\n', 'pso_mtl4\ton\npso_gpu\tapplegpu_g19p\n',   # without the key: the header is made as before, no message
